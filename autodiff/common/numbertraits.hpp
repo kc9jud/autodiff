@@ -30,6 +30,7 @@
 #pragma once
 
 // C++ includes
+#include <utility>
 #include <autodiff/common/meta.hpp>
 
 namespace autodiff {
@@ -59,6 +60,26 @@ struct NumberTraits
 
     /// The order of the autodiff number type.
     static constexpr auto Order = 0;
+
+    // conversion functions
+    template<typename V>
+    static inline constexpr auto constant(V&& c)
+    {
+        return static_cast<NumericType>(std::forward<V>(c));
+    }
+    template<typename U, typename V>
+    static inline constexpr auto constant(U&&, V&& c)
+    {
+        return static_cast<NumericType>(std::forward<V>(c));
+    }
+
+    // common constants
+    static inline constexpr auto zero()          { return constant(0); }
+    template<typename U>
+    static inline constexpr auto zero(U&& other) { return constant(std::forward<U>(other), 0); }
+    static inline constexpr auto one()           { return constant(1); }
+    template<typename U>
+    static inline constexpr auto one(U&& other)  { return constant(std::forward<U>(other), 1); }
 };
 
 /// A template alias to get the underlying floating point type of an autodiff number.

@@ -684,7 +684,7 @@ AUTODIFF_DEVICE_FUNC auto& gradnode(Dual<T, G>& dual)
 template<size_t order, typename T, typename G, typename U>
 AUTODIFF_DEVICE_FUNC auto seed(Dual<T, G>& dual, U&& seedval)
 {
-    gradnode<order>(dual) = static_cast<NumericType<decltype(gradnode<order>(dual))>>(seedval);
+    gradnode<order>(dual) = NumberTraits<PlainType<decltype(gradnode<order>(dual))>>::constant(seedval);
 }
 
 //=====================================================================================================================
@@ -728,11 +728,21 @@ AUTODIFF_DEVICE_FUNC constexpr auto inverse(U&& expr)
 //-----------------------------------------------------------------------------
 // AUXILIARY CONSTEXPR CONSTANTS
 //-----------------------------------------------------------------------------
+template<typename U, typename V>
+AUTODIFF_DEVICE_FUNC constexpr auto Zero(V&& other)
+{
+    return NumberTraits<PlainType<U>>::zero(std::forward<V>(other));
+}
 template<typename U>
-AUTODIFF_DEVICE_FUNC constexpr auto Zero() { return static_cast<NumericType<U>>(0); }
+AUTODIFF_DEVICE_FUNC constexpr auto Zero() { return NumberTraits<PlainType<U>>::zero(); }
 
+template<typename U, typename V>
+AUTODIFF_DEVICE_FUNC constexpr auto One(V&& other)
+{
+    return NumberTraits<PlainType<U>>::one(std::forward<V>(other));
+}
 template<typename U>
-AUTODIFF_DEVICE_FUNC constexpr auto One() { return static_cast<NumericType<U>>(1); }
+AUTODIFF_DEVICE_FUNC constexpr auto One() { return NumberTraits<PlainType<U>>::one(); }
 
 //=====================================================================================================================
 //
@@ -846,7 +856,7 @@ template<typename L, typename R, Requires<isOperable<L, R>> = true>
 AUTODIFF_DEVICE_FUNC constexpr auto operator/(L&& l, R&& r)
 {
     if constexpr (isArithmetic<R>)
-        return std::forward<L>(l) * (One<L>() / std::forward<R>(r));
+        return std::forward<L>(l) * (One<L>(r) / std::forward<R>(r));
     else return std::forward<L>(l) * inverse(std::forward<R>(r));
 }
 
@@ -980,7 +990,7 @@ AUTODIFF_DEVICE_FUNC constexpr void assign(Dual<T, G>& self, U&& other)
     // ASSIGN A NUMBER: self = number
     if constexpr (isArithmetic<U>) {
         self.val = other;
-        self.grad = Zero<G>();
+        self.grad = Zero<G>(self.val);
     }
     // ASSIGN A DUAL NUMBER: self = dual
     else if constexpr (isDual<U>) {
@@ -1271,7 +1281,7 @@ AUTODIFF_DEVICE_FUNC constexpr void assignDiv(Dual<T, G>& self, U&& other)
     }
     // ASSIGN-DIVIDE A DUAL NUMBER: self /= dual
     else if constexpr (isDual<U>) {
-        const T aux = One<T>() / other.val; // to avoid aliasing when self === other
+        const T aux = One<T>(self.val) / other.val; // to avoid aliasing when self === other
         self.val *= aux;
         self.grad -= self.val * other.grad;
         self.grad *= aux;
@@ -1559,7 +1569,7 @@ AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, NegOp)
 template<typename T, typename G>
 AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, InvOp)
 {
-    self.val = One<T>() / self.val;
+    self.val = One<T>(self.val) / self.val;
     self.grad *= - self.val * self.val;
 }
 
@@ -1580,7 +1590,7 @@ AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, CosOp)
 template<typename T, typename G>
 AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, TanOp)
 {
-    const T aux = One<T>() / cos(self.val);
+    const T aux = One<T>(self.val) / cos(self.val);
     self.val = tan(self.val);
     self.grad *= aux * aux;
 }
@@ -1602,7 +1612,7 @@ AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, CoshOp)
 template<typename T, typename G>
 AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, TanhOp)
 {
-    const T aux = One<T>() / cosh(self.val);
+    const T aux = One<T>(self.val) / cosh(self.val);
     self.val = tanh(self.val);
     self.grad *= aux * aux;
 }
@@ -1610,7 +1620,7 @@ AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, TanhOp)
 template<typename T, typename G>
 AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, ArcSinOp)
 {
-    const T aux = One<T>() / sqrt(1.0 - self.val * self.val);
+    const T aux = One<T>(self.val) / sqrt(1.0 - self.val * self.val);
     self.val = asin(self.val);
     self.grad *= aux;
 }
@@ -1618,7 +1628,7 @@ AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, ArcSinOp)
 template<typename T, typename G>
 AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, ArcCosOp)
 {
-    const T aux = -One<T>() / sqrt(1.0 - self.val * self.val);
+    const T aux = -One<T>(self.val) / sqrt(1.0 - self.val * self.val);
     self.val = acos(self.val);
     self.grad *= aux;
 }
@@ -1626,7 +1636,7 @@ AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, ArcCosOp)
 template<typename T, typename G>
 AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, ArcTanOp)
 {
-    const T aux = One<T>() / (1.0 + self.val * self.val);
+    const T aux = One<T>(self.val) / (1.0 + self.val * self.val);
     self.val = atan(self.val);
     self.grad *= aux;
 }
@@ -1641,7 +1651,7 @@ AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, ExpOp)
 template<typename T, typename G>
 AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, LogOp)
 {
-    const T aux = One<T>() / self.val;
+    const T aux = One<T>(self.val) / self.val;
     self.val = log(self.val);
     self.grad *= aux;
 }
@@ -1649,8 +1659,8 @@ AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, LogOp)
 template<typename T, typename G>
 AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, Log10Op)
 {
-    constexpr NumericType<T> ln10 = 2.3025850929940456840179914546843;
-    const T aux = One<T>() / (ln10 * self.val);
+    constexpr auto ln10 = NumberTraits<PlainType<T>>::constant(self.val, 2.3025850929940456840179914546843);
+    const T aux = One<T>(self.val) / (ln10 * self.val);
     self.val = log10(self.val);
     self.grad *= aux;
 }
@@ -1672,7 +1682,7 @@ AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, AbsOp)
 template<typename T, typename G>
 AUTODIFF_DEVICE_FUNC constexpr void apply(Dual<T, G>& self, ErfOp)
 {
-    constexpr NumericType<T> sqrt_pi = 1.7724538509055160272981674833411451872554456638435;
+    constexpr auto sqrt_pi = NumberTraits<PlainType<T>>::constant(self.val, 1.7724538509055160272981674833411451872554456638435);
     const T aux = self.val;
     self.val = erf(aux);
     self.grad *= 2.0 * exp(-aux*aux)/sqrt_pi;
