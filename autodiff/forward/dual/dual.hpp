@@ -1727,7 +1727,7 @@ auto repr(const Dual<T, G>& x)
 //=====================================================================================================================
 
 template<typename T, typename G>
-struct NumberTraits<Dual<T, G>>
+struct NumberTraits<Dual<T, G>> : NumberTraits<typename NumberTraits<DualType<T>>::NumericType>
 {
     /// The dual type resulting from the evaluation of the expression (in case T is not double but an expression!).
     using ResultDualType = DualType<T>;
@@ -1737,10 +1737,15 @@ struct NumberTraits<Dual<T, G>>
 
     /// The order of Dual<T, G>.
     static constexpr auto Order = 1 + NumberTraits<ResultDualType>::Order;
+
+    //
+    using NumberTraits<typename NumberTraits<DualType<T>>::NumericType>::constant;
+    using NumberTraits<typename NumberTraits<DualType<T>>::NumericType>::zero;
+    using NumberTraits<typename NumberTraits<DualType<T>>::NumericType>::one;
 };
 
 template<typename Op, typename R>
-struct NumberTraits<UnaryExpr<Op, R>>
+struct NumberTraits<UnaryExpr<Op, R>> : NumberTraits<typename NumberTraits<DualType<UnaryExpr<Op, R>>>::NumericType>
 {
     /// The dual type resulting from the evaluation of the expression.
     using ResultDualType = DualType<UnaryExpr<Op, R>>;
@@ -1753,7 +1758,7 @@ struct NumberTraits<UnaryExpr<Op, R>>
 };
 
 template<typename Op, typename L, typename R>
-struct NumberTraits<BinaryExpr<Op, L, R>>
+struct NumberTraits<BinaryExpr<Op, L, R>> : NumberTraits<typename NumberTraits<DualType<BinaryExpr<Op, L, R>>>::NumericType>
 {
     /// The dual type resulting from the evaluation of the expression.
     using ResultDualType = DualType<BinaryExpr<Op, L, R>>;
@@ -1766,7 +1771,7 @@ struct NumberTraits<BinaryExpr<Op, L, R>>
 };
 
 template<typename Op, typename L, typename C, typename R>
-struct NumberTraits<TernaryExpr<Op, L, C, R>>
+struct NumberTraits<TernaryExpr<Op, L, C, R>> : NumberTraits<typename NumberTraits<DualType<TernaryExpr<Op, L, C, R>>>::NumericType>
 {
     /// The dual type resulting from the evaluation of the expression.
     using ResultDualType = DualType<TernaryExpr<Op, L, C, R>>;
